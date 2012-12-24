@@ -1,0 +1,26 @@
+! 连接非线性构件的节点号和坐标
+! NONL
+
+*GET,Nnod,NODE,0,COUNT
+*DEL,Xy,,NOPR
+*DIM,Xy,ARRAY,NNOD*3
+*DEL,Nodesl,,NOPR
+*DIM,Nodesl,ARRAY,NNOD
+*GET,Nd,NODE,0,NUM,MIN
+*DO,I,1,Nnod,1
+  Nodesl(I) = Nd
+  Xy(I*3-2) = NX(Nd)
+  Xy(I*3-1) = NY(Nd)
+  Xy(I*3) = NZ(Nd)
+  Nd = NDNEXT(Nd)
+*ENDDO
+
+*CFOPEN,NONL,DAT,,APPEND
+*VWRITE,Nodesl(1)
+(F10.0)
+*CFCLOS
+
+*CFOPEN,NONLXY,DAT,,APPEND
+*VWRITE,Xy(1)
+(E25.15)
+*CFCLOS

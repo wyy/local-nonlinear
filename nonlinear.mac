@@ -1,0 +1,37 @@
+FINISH$/CLEAR$/FILNAME,FILE
+/PREP7
+ET,1,BEAM188
+SECTYPE,1,BEAM,RECT
+SECDATA,0.05,0.05
+MP,EX,1,2.1E11
+MP,PRXY,1,0.3
+!! MP,DENS,1,7800
+TB,BKIN,1
+TBDATA,1,235E6,7.9E8
+!! TBPLOT,BKIN,1
+*DIM,tempv,,1
+*VREAD,tempv,NON,TXT,,,1
+(F10.0)
+n=tempv(1)
+*DIM,xy,,n,3
+*VREAD,xy,NONLXY,DAT,,JIK,3,n
+(F25.0)
+*DO,I,1,n/2
+  n1=I*2-1
+  n2=I*2
+  N,n1,xy(n1,1),xy(n1,2),xy(n1,3)
+  N,n2,xy(n2,1),xy(n2,2),xy(n2,3)
+  E,n1,n2
+*ENDDO
+! solve
+FINISH
+/CONFIG,NRES,100000
+/SOLU
+ANTYPE,4
+TIME,1e-6
+*DO,I,1,n
+  D,I,UX,0
+  D,I,UY,0
+  D,I,UZ,0
+*ENDDO
+SOLVE
