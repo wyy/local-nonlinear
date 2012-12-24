@@ -46,3 +46,20 @@ NSEL,S,LOC,X,0$NSEL,R,LOC,Y,ly*ny$NSEL,U,LOC,Z,4,nz*lz-4
 MNOD                     !输出主自由度所在节点号
 ALLSEL
 KMCR                     !输出 k、m、c
+!******* NONLINEAR *******
+*DO,i,1,5
+  x=lx
+  y=i*ly
+  z=lz
+  NSEL,S,LOC,X,x
+  NSEL,R,LOC,Y,y
+  NSEL,R,LOC,Z,z
+  nonl
+  x=x+lx
+  y=y+ly
+  NSEL,S,LOC,X,x
+  NSEL,R,LOC,Y,y
+  NSEL,R,LOC,Z,z
+  nonl
+*ENDDO
+ALLSEL

@@ -14,7 +14,7 @@ TBDATA,1,235E6,7.9E8
 (F10.0)
 n=tempv(1)
 *DIM,xy,,n,3
-*VREAD,xy,NONLXY,DAT,,JIK,3,n
+*VREAD,xy,NONLXY,TXT,,JIK,3,n
 (F25.0)
 *DO,I,1,n/2
   n1=I*2-1

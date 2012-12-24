@@ -362,7 +362,7 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
     % nonlinear related variables
     global ansys
     non_f_full = zeros(size(trans, 1), 1);
-    non_nodes = load('NONL.DAT');
+    non_nodes = load('NONL.TXT');
     non_d = zeros(size(non_nodes,1)*3, 1);
     non_f = zeros(size(non_d));
     fid = fopen('NON.TXT', 'w');
