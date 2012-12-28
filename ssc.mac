@@ -1,0 +1,17 @@
+! Stress-Strain Curve
+/POST26
+NUMVAR,200
+NSEL,S,NODE,,nodmax+1
+ESLN
+elen=ELNEXT(0)
+ALLSEL
+ESOL,2,elen,,LS,7,STRESS
+ESOL,3,elen,,LEPEL,7,EPEL
+ESOL,4,elen,,LEPPL,7,EPPL
+ADD,5,3,4
+/AXLAB,X,axial elastic and plastic strain
+/AXLAB,Y,axial stress
+XVAR,5
+PLVAR,2
+LINES,10000
+PRVAR,5,2

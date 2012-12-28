@@ -1,71 +1,57 @@
 %% matrix.m --- local nonlinear transient analysis
-% |2011-12-07, Wang Yingying|
+% |2011-12-07, wyyjtu@gmail.com|
 %
-% |modified: add latex (2012-06-28, wyy).|
-% |modified: earthquake analysis (2012-08-05, wyy).|
+% |2012-06-28: add latex.|
+% |2012-12-25: local nonlinear.|
 %
-% *Matlab version (R2011, R2012)*.
+% MATLAB R2012a
+% ANSYS 12.1
 %
 % _code:_
 
 %% matrix
-% Verify the *path to ANSYS*.
-%
-% Customize *target error* of IRS method.
+% Verify the *Path to ANSYS*.
 function matrix()
     clc
-    % settings
+    % ANSYS Path
     global ansys
     ansys = '"C:\Program Files\ANSYS Inc\v121\ansys\bin\WINX64\ansys121" -b';
-    % call ANSYS
-    fprintf('call ANSYS\n\n');
+
+    % model
     [status, result] = system('clean');
     system([ansys ' -i model.mac -o vm1.out']);
-
     % read [k] [m] and [mapping]
-    [k, rhs] = readhb('K_RHS.TXT');
+    [k, rhs] = readhb('K.TXT');
     [m, r0] = readhb('M.TXT');
-    [dofmp, dofmpxyn] = readmap('K_RHS.mapping', size(k,1));
-    % plots the sparsity pattern of k
-    % spy(k, 5)
-    % exact solution
-    fprintf('\nEXACT SOLUTION\n');
-    eigs_vector = get_eigs(k, m, 'EXACT');
+    [dofmp, dofmpxyn] = readmap('K.mapping', size(k,1));
+
     % model reduction
-    [ml, kl, tl] = lrbm(k, m, dofmp, dofmpxyn);
-    [mi, ki, ti] = irs(k, m, dofmp);
-    % transient analysis
+    fprintf('\nNatural frequencies\n');
+    freq(k, m, 'EXACT');
+    [mr, kr, tr] = lrbm(k, m, dofmp, dofmpxyn);
+    [mr, kr, tr] = irs(k, m, dofmp);
+
     tic
-    fprintf('\nTRANSIENT ANALYSIS WITH HPD-L\n');
-    trans_hpd(mi, ki, ti, rhs, dofmp, dofmpxyn, 'irs')
-    % trans_hpd(ml, kl, tl, rhs, dofmp, dofmpxyn, 'lr')
-    % trans_hpd(mi, ki, ti, rhs, dofmp, dofmpxyn, 'resume')
+    % transient analysis
+    fprintf('\nTransient analysis with HPD-L\n');
+    % OPTIONS: 'linear' || 'nonlinear'
+    [times, rst] = trans_hpd(mr, kr, tr, dofmp, dofmpxyn, 'linear');
     toc
+    resplot(1646, 3, tr, dofmp, dofmpxyn, times, rst)
+    save('rstfile.mat', 'tr', 'dofmp', 'dofmpxyn', 'times', 'rst')
+    load('rstfile.mat')
 end
 
-%% get_eigs
-% Get the n smallest magnitude eigenvalues, which is displayed on the
-% screen and saved to `log-eigs.txt' at the same time.
-%
-% Customize *n*.
-function eigs_vector = get_eigs(k, m, flags)
-    n = 12;
+%% freq
+% Natural frequencies.
+function frequencies = freq(k, m, flags)
+    n = 15;
     d = eigs(k, m, n, 'sm');
     d = sort(d, 1);
-    eigs_vector = sqrt(d) / (2*pi);
-    % write to log file
-    fid = fopen('log-eigs.txt', 'a');
-    fprintf(fid, format_out_str(flags, eigs_vector));
-    fclose(fid);
-end
-
-%% format_out_str
-% Get formated out_string, and print it on the screen.
-%
-% Customize *display format*.
-function out_string = format_out_str(flags, eigs_v)
-    out_string = [sprintf('%6s:', flags), sprintf('%11.5f', eigs_v), '\n'];
-    fprintf(out_string);
+    % units: HZ
+    frequencies = sqrt(d) / (2 * pi);
+    str = [sprintf('%7s:', flags), sprintf('%11.5f', frequencies), '\n'];
+    fprintf(str);
 end
 
 %% readhb
@@ -189,9 +175,6 @@ end
 % \mathbf{K}_{ss}^{-1}(\mathbf{M}_{sm}+\mathbf{M}_{ss}\mathbf{t}_{IRS,i})
 % \mathbf{M}_{IRS,i}^{-1}\mathbf{K}_{IRS,i}.$$
 function [mr, kr, t] = irs(k, m, dofmp)
-    fprintf('\nBEGIN IRS METHOD\n');
-    % split K, M into sub matrices relating to the master degrees of
-    % freedom
     [meqid, seqid, nmdof] = mseqid(dofmp);
     kss = k(seqid, seqid);
     ksm = k(seqid, meqid);
@@ -208,15 +191,15 @@ function [mr, kr, t] = irs(k, m, dofmp)
     while 1
         mr = t' * m * t;
         kr = t' * k * t;
-        % eigs, error
-        eigs_vector = get_eigs(kr, mr, sprintf('IRS%3d',i));
+        % frequencies, error
+        freqs = freq(kr, mr, sprintf('IRS-%d',i));
         if i > 0
-            error = max(abs((eigs_vector - eigs_old) ./ eigs_old));
+            error = max(abs((freqs - freqs_old) ./ freqs_old));
             if error < 0.001
                 break
             end
         end
-        eigs_old = eigs_vector;
+        freqs_old = freqs;
         % the transformation matrix for IRS
         i = i + 1;
         temp = msm + mss * t(seqid, :) * (mr \ kr);
@@ -227,7 +210,7 @@ end
 %% mseqid
 % Get meqid, seqid, nmdof, restor.
 function [meqid, seqid, nmdof] = mseqid(dofmp)
-    mnd_list = load('M_NODES.TXT');
+    mnd_list = load('MNODES.TXT');
     meqid = ismember(dofmp, mnd_list);
     seqid = not(meqid);
     nmdof = size(find(meqid), 1);
@@ -240,7 +223,6 @@ end
 %
 % $$\mathbf{T}=\mathbf{K}^{-1}(\mathbf{R}^T)^+\mathbf{R}^T\mathbf{KR}.$$
 function [mr, kr, t] = lrbm(k, m, dofmp, dofmpxyn)
-    fprintf('\nBEGIN LOCAL RIGID BODY MODE\n');
     r = getr(dofmp, dofmpxyn, size(k,1));
     % t
     prkr = pinv(r') * (r' * k * r);
@@ -249,13 +231,13 @@ function [mr, kr, t] = lrbm(k, m, dofmp, dofmpxyn)
     mr = t' * m * t;
     kr = t' * k * t;
     % eigs
-    eigs_vector = get_eigs(kr, mr, 'LR');
+    freq(kr, mr, 'LR');
 end
 
 %% getr
 % Computer r.
 function r = getr(dofmp, dofmpxyn, n)
-    nreg = load('AMOUNT.TXT');
+    nreg = load('RIGID.TXT');
     r = zeros(n, 6*nreg);
     temp = eye(6);
     for i = 1:nreg
@@ -273,7 +255,7 @@ function r = getr(dofmp, dofmpxyn, n)
             temp(2,6) = xd;
             temp(3,4) = yd;
             temp(3,5) = - xd;
-            % fill to r
+            % fill r
             indexr = dofmp == nd_list(j);
             indext = dofmpxyn(indexr, 1);
             r(indexr, (6*(i-1)+1):(6*i)) = temp(indext, :);
@@ -311,7 +293,7 @@ function rst = hpdl(m, c, k, f, step, trans, dofmp, dofmpxyn, varargin)
     h(n+1:end, 1:n) = - im * k;
     h(n+1:end, n+1:end) = - im * c;
     ih = inv(h);
-    % computer T
+    % T
     dt = step / 2^20;
     ta = h*dt + (h*dt)^2/2 + (h*dt)^3/6 + (h*dt)^4/24;
     for i = 1:20
@@ -321,10 +303,11 @@ function rst = hpdl(m, c, k, f, step, trans, dofmp, dofmpxyn, varargin)
     % f
     f = im * f;
     % hpdl iteration
-    if length(varargin) == 0
+    if isempty(varargin)
+        % linear
         rst = hpdl_iteration(ih, t, f, step);
     else
-        % iteration with nonlinear force
+        % nonlinear
         rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn);
     end
 end
@@ -361,17 +344,17 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
     v = zeros(2*n, 1);
     % nonlinear related variables
     global ansys
-    non_f_full = zeros(size(trans, 1), 1);
     non_nodes = load('NONL.TXT');
     non_d = zeros(size(non_nodes,1)*3, 1);
-    non_f = zeros(size(non_d));
-    fid = fopen('NON.TXT', 'w');
-    fprintf(fid, '%10d\n', size(non_nodes,1));
-    fclose(fid);
+    non_f_full = zeros(size(trans, 1), 1);
+    non_iter = 0;
+    non_print_b = char(reshape([92;98]*ones(1,57), 1, []));
+    non_print = '[%6d/%6d] %2d, Cumulative Iteration Number: %7d\n';
+    % initial nonlinear analysis
+    fprintf(non_print, 0, 0, 0, 0);
     system([ansys ' -i nonlinear.mac -o vm1.out']);
     for i = 1:nstep
-        fprintf('step %6d of %d, ', i, nstep);
-        [status, result] = system('move FILE.r002 FILE.r001');
+        [status, result] = system('move file.r002 file.r001');
         for j = 0:99
             non_f_trans = trans' * non_f_full;
             r(n+1:end, 1) = f(:, i);
@@ -381,14 +364,14 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
             if j > 0
                 error = max(abs((v_temp - v_old) ./ v_old));
                 if j == 20
-                    fprintf('nonconvergence, ');
+                    fprintf('Nonconvergence: step %d\n', i);
                     break
                 elseif error < 0.001
+                    fprintf(non_print_b);
                     break
                 end
             end
             v_old = v_temp;
-            % nonlinear force
             % output degree-of-freedom constraints at nodes
             v_trans = trans * v_temp(1:n, 1);
             for ii = 1:size(non_nodes,1)
@@ -402,7 +385,7 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
             fclose(fid);
             % restart a previous analysis
             fid = fopen('RESTART.TXT', 'w');
-            fprintf(fid, ['FINISH$/CLEAR$/FILNAME,FILE\n' ...
+            fprintf(fid, ['FINISH$/CLEAR$/FILNAME,file\n' ...
                           '/SOLU$ANTYPE,,REST,%d\n' ...
                           'TIME,%g$nonrest\n'], i, i*step);
             fclose(fid);
@@ -414,51 +397,50 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
                 non_f_full(index(1:3), 1) = non_f(ii*3-2:ii*3, 1);
             end
         end
+        non_iter = non_iter + j;
+        fprintf(non_print, i, nstep, j, non_iter);
+        % save result
         v = v_temp;
         f(:, i+1) = f(:, i+1) - im * non_f_trans;
         rst(:, i) = v;
-        fprintf('nonlinear iteration: %d\n', j);
-        fid = fopen('log-iteration.txt', 'a');
-        fprintf(fid, '%d\n', j);
-        fclose(fid);
     end
 end
 
 %% trans_hpd
 % Transient analysis with HPD-L.
-function trans_hpd(m, k, t, rhs, dofmp, dofmpxyn, method)
+function [times, rst] = trans_hpd(m, k, t, dofmp, dofmpxyn, str)
     n = size(k, 1);
     % damping
-    alpha = 5;
-    beta = 0;
+    alpha = 0.6;
+    beta = 0.006;
     c = alpha * m + beta * k;
     % load earthquake
-    [step, asequence_x] = rd_earthquake('I-ELC180.AT2');
-    [step, asequence_y] = rd_earthquake('I-ELC270.AT2');
-    % direction x y
-    index_x = dofmpxyn == 1;
-    index_y = dofmpxyn == 2;
+    [step, acce_180] = rd_earthquake('I-ELC180.AT2');
+    [step, acce_270] = rd_earthquake('I-ELC270.AT2');
+    % direction 180: ACEL_Z, 270: ACEL_X
+    index_180 = dofmpxyn == 3;
+    index_270 = dofmpxyn == 1;
     % transformed force sequence
-    fs_x = - m * pinv(t) * index_x * asequence_x' * 9.81;
-    fs_y = - m * pinv(t) * index_y * asequence_y' * 9.81;
-    fs = fs_x + fs_y;
+    fs_1 = - m * pinv(t) * index_180 * acce_180' * 9.81;
+    fs_2 = - m * pinv(t) * index_270 * acce_270' * 9.81;
+    fs = fs_1 + fs_2;
     % modify step
-    scale = 2;
+    scale = 1;
     step = step * scale;
     fs = fs(:, scale:scale:end);
 
-    if strcmp(method, 'resume')
-        % resume
-        rst = load(['log-rst.txt']);
-    else
-        % hpdl
-        rst = hpdl(m, c, k, fs, step, t, dofmp, dofmpxyn, 'non');
-        save(['log-rst.txt'], 'rst', '-ASCII')
+    % transient analysis
+    if strcmp(str,  'linear')
+        % linear
+        rst = hpdl(m, c, k, fs, step, t, dofmp, dofmpxyn);
+    elseif strcmp(str, 'nonlinear')
+        % nonlinear
+        rst = hpdl(m, c, k, fs, step, t, dofmp, dofmpxyn, 'nonlinear');
     end
-    % plot displacement
+    rst = rst(1:n, :);
+    % times
     time = step * size(fs, 2);
     times = step:step:time;
-    resplot(1546, 1, full(t), dofmp, dofmpxyn, times, rst(1:n,:), method)
 end
 
 %% rd_earthquake
@@ -466,30 +448,29 @@ end
 %
 % The Pacific Earthquake Engineering Research Center (PEER)
 % ground motion database: http://peer.berkeley.edu/smcat/
-function [step, asequence] = rd_earthquake(file_name)
+function [step, acce] = rd_earthquake(file_name)
     fid = fopen(file_name);
     for i = 1:4
         tline = fgetl(fid);
     end
     step = sscanf(tline, 'NPTS= %*d, DT= %f SEC');
-    asequence = fscanf(fid, '%f');
+    acce = fscanf(fid, '%f');
     fclose(fid);
-    save(['log-' file_name '.txt'], 'asequence', '-ASCII')
 end
 
 %% resplot
 % Plot and save the result of a node (node_num: ndof).
-function resplot(node_num, ndof, t, dofmp, dofmpxyn, times, rst, method)
+function resplot(node_num, ndof, t, dofmp, dofmpxyn, times, rst)
     index = dofmp == node_num & dofmpxyn == ndof;
     t_res = t(index, :);
     y = t_res * rst;
     plot(times, y)
-    hold on
-    % save in files
+    % save
     times = times';
     y = y';
-    save('log-times.txt', 'times', '-ASCII')
-    save(['log-' method '-nsolu.txt'], 'y', '-ASCII')
+    str = sprintf('%d-%d', node_num, ndof);
+    save(['log-' str '-t.txt'], 'times', '-ASCII')
+    save(['log-' str '-u.txt'], 'y', '-ASCII')
 end
 
 % matrix.m ends here

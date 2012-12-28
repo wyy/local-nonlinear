@@ -1,22 +1,22 @@
-!! FINISH$/CLEAR$/FILNAME,FILE
+!! FINISH$/CLEAR$/FILNAME,file
 !! /SOLU$ANTYPE,,REST,1
 !! TIME,0.01
 *DIM,d,,n,3
 *VREAD,d,D,TXT,,JIK,3,n
 (F25.0)
-*DO,I,1,n
-  D,I,UX,d(I,1)
-  D,I,UY,d(I,2)
-  D,I,UZ,d(I,3)
+*DO,i,1,n
+  D,i,UX,d(i,1)
+  D,i,UY,d(i,2)
+  D,i,UZ,d(i,3)
 *ENDDO
 SOLVE
 ! post
-FINISH$/POST26
+/POST26
 *DIM,rf,,n,3
-*DO,I,1,n
-  *GET,rf(I,1),NODE,I,RF,FX
-  *GET,rf(I,2),NODE,I,RF,FY
-  *GET,rf(I,3),NODE,I,RF,FZ
+*DO,i,1,n
+  *GET,rf(i,1),NODE,i,RF,FX
+  *GET,rf(i,2),NODE,i,RF,FY
+  *GET,rf(i,3),NODE,i,RF,FZ
 *ENDDO
 *MWRITE,rf,F,TXT,,JIK
 (E25.15)

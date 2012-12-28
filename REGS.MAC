@@ -1,21 +1,21 @@
-! OUTPUT NODES INFO
+! selected nodes info
 ! REGS,ARG1
 
-*GET,Nnod,NODE,0,COUNT
-*DEL,Xy,,NOPR
-*DIM,Xy,ARRAY,NNOD,3
-*DEL,Nodesl,,NOPR
-*DIM,Nodesl,ARRAY,NNOD
-*GET,Nd,NODE,0,NUM,MIN
-*DO,I,1,Nnod,1
-  Nodesl(I) = Nd
-  Xy(I,1) = NX(Nd)
-  Xy(I,2) = NY(Nd)
-  Xy(I,3) = NZ(Nd)
-  Nd = NDNEXT(Nd)
+*DEL,xy_,,NOPR
+*DEL,nodl_,,NOPR
+*GET,n_,NODE,0,COUNT
+*DIM,xy_,,n_,3
+*DIM,nodl_,,n_
+*GET,nd_,NODE,0,NUM,MIN
+*DO,i_,1,n_
+  nodl_(i_) = nd_
+  xy_(i_,1) = NX(nd_)
+  xy_(i_,2) = NY(nd_)
+  xy_(i_,3) = NZ(nd_)
+  nd_ = NDNEXT(nd_)
 *ENDDO
 
-*MWRITE,Nodesl,NODES_%ARG1%,TXT,,IJK
+*MWRITE,nodl_,NODES_%ARG1%,TXT,,IJK
 (F10.0)
-*MWRITE,Xy,NODESXY_%ARG1%,TXT,,IJK
+*MWRITE,xy_,NODESXY_%ARG1%,TXT,,IJK
 (E25.15)

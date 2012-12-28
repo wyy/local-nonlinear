@@ -1,65 +1,116 @@
+FINISH$/CLEAR$/FILNAME,file
 /PREP7
-! 尺寸
-nx=4$ny=6$nz=2$lx=10$ly=3$lz=8$kbx=1000*lx$kby=kbx+1$K,kbx,kbx$K,kby,0,kby
-! 材料、梁截面
-ET,1,BEAM188$MP,EX,1,2.1E11$MP,PRXY,1,0.3$MP,DENS,1,7800
-SECTYPE,1,BEAM,RECT$SECOFFSET,CENT$SECDATA,0.5,0.5
-SECTYPE,2,BEAM,I$SECOFFSET,CENT$SECDATA,0.18,0.18,0.3,0.02,0.02,0.012
-! 几何模型
+! variables
+nx=4$ny=6$nz=2$lx=10$ly=3$lz=8
+kbx=10000$kby=kbx+1$K,kbx,kbx$K,kby,0,kby
+! element type, material property, section type
+ET,1,BEAM188
+MP,EX,1,2.1E11$MP,PRXY,1,0.3$MP,DENS,1,7800
+SECTYPE,1,BEAM,RECT$SECDATA,0.3,0.3
+SECTYPE,2,BEAM,I$SECDATA,0.18,0.18,0.3,0.02,0.02,0.012
+! model
 K,1$K,2,lx$K,3,0,ly$K,4,lx,ly$K,5,0,0,lz$K,6,lx,0,lz$K,7,0,ly,lz$K,8,lx,ly,lz
 L,1,3$L,3,4$L,4,2$L,5,7$L,7,8$L,8,6$L,3,7$L,4,8
 LGEN,nx,ALL,,,lx$LGEN,ny,ALL,,,,ly$LGEN,nz,ALL,,,,,lz$NUMMRG,ALL
-! 划分网格
+! mesh
 *DO,i,1,ny$LSEL,U,LOC,Y,ly*i$*ENDDO
 LATT,1,,1,,kbx,,1$LESIZE,ALL,,,3$LSEL,INVE$LATT,1,,1,,kby,,2$LESIZE,ALL,,,10
 ALLSEL$LMESH,ALL
-! 加载
-NSEL,S,LOC,Y,0$D,ALL,ALL$ALLSEL
-*DO,i,1,ny$LSEL,S,LOC,X,0$LSEL,R,LOC,Y,ly*i$ESLL$SFBEAM,ALL,2,PRES,-1000$*ENDDO
-*DO,i,0,nz$LSEL,S,LOC,X,0$LSEL,R,LOC,Z,lz*i$ESLL$SFBEAM,ALL,1,PRES,-1000$*ENDDO
-ALLSEL
-!! ! 显示
-!! /ESHAPE,1$EPLOT$/GLINE,1,-1$/REPLOT
-!! ! 求解
-!! /SOLU$SOLVE$FINISH
-!! ! 瞬态分析 加载
-!! /SOLU$ANTYPE,TRANS$TRNOPT,FULL$OUTRES,ALL,ALL$DELTIM,1.0E-8$KBC,1
-!! AUTOTS,ON$TIME,2$ALPHAD,5$LSWRITE,1!$LSSOLVE,1
-!! ! 卸载
-!! SFEDELE,ALL,ALL,PRES$KBC,1$TIME,4$LSWRITE,2$LSSOLVE,1,2
+! constraints
+NSEL,S,LOC,Y,0$D,ALL,ALL$ALLSEL$EPLOT
+!! ! elements shapes
+!! /ESHAPE,1$/GLINE,1,-1$EPLOT
+
+!******* K, M *******
+/SOLU
+ANTYPE,MODAL
+MODOPT,LANB,1
+SOLVE
+/AUX2
+FILE,file,full
+HBMAT,K,TXT,,ASCII,STIFF,YES,YES
+HBMAT,M,TXT,,ASCII,MASS,NO
+FINISH
 
 !******* LR *******
-ireg=0
-*DO,iz,1,2
+ii=0
+*DO,i,1,4
   *DO,j,1,3
-    *DO,i,1,4
-      NSEL,S,LOC,Z,(iz-1)*lz,iz*lz
+    *DO,k,1,2
+      NSEL,S,LOC,Z,(k-1)*lz,k*lz
       NSEL,R,LOC,X,(i-1)*lx,i*lx
-      NSEL,R,LOC,Y,(3-j)*2*ly,(3-j+1)*2*ly !刚体化区域
-      ireg=ireg+1$REGS,ireg                !输出所选区域的节点信息
+      NSEL,R,LOC,Y,(3-j)*2*ly,(3-j+1)*2*ly
+      ii=ii+1$REGS,ii
     *ENDDO
   *ENDDO
 *ENDDO
-REGN,ireg                !输出区域个数
+ALLSEL
+*CFOPEN,RIGID,TXT
+*VWRITE,ii
+(F10.0)
+*CFCLOS
+
 !******* IRS *******
-NSEL,S,LOC,X,0$NSEL,R,LOC,Y,ly*ny$NSEL,U,LOC,Z,4,nz*lz-4
-MNOD                     !输出主自由度所在节点号
-ALLSEL
-KMCR                     !输出 k、m、c
+*DIM,mnod,,7
+mnod(1)=NODE(0,6*ly,lz)
+mnod(2)=NODE(2*lx,4*ly,lz)
+mnod(3)=NODE(4*lx,6*ly,lz)
+mnod(4)=NODE(lx,5*ly,0)
+mnod(5)=NODE(lx,5*ly,2*lz)
+mnod(6)=NODE(3*lx,5*ly,0)
+mnod(7)=NODE(3*lx,5*ly,2*lz)
+*MWRITE,mnod,MNODES,TXT,,IJK,7
+(F10.0)
+
 !******* NONLINEAR *******
-*DO,i,1,5
-  x=lx
-  y=i*ly
-  z=lz
-  NSEL,S,LOC,X,x
-  NSEL,R,LOC,Y,y
-  NSEL,R,LOC,Z,z
-  nonl
-  x=x+lx
-  y=y+ly
-  NSEL,S,LOC,X,x
-  NSEL,R,LOC,Y,y
-  NSEL,R,LOC,Z,z
-  nonl
+*DIM,nodl,,1000
+*DIM,xy,,3000
+ii=0
+*DO,i,1,3
+  *DO,j,1,5
+    *DO,k,0,2,2
+      ii=ii+1
+      xy(6*ii-5)=i*lx$xy(6*ii-4)=j*ly$xy(6*ii-3)=k*lz
+      xy(6*ii-2)=i*lx$xy(6*ii-1)=j*ly+ly$xy(6*ii-0)=lz
+      n1=NODE(xy(6*ii-5),xy(6*ii-4),xy(6*ii-3))
+      n2=NODE(xy(6*ii-2),xy(6*ii-1),xy(6*ii-0))
+      nodl(2*ii-1)=n1$nodl(2*ii)=n2
+    *ENDDO
+  *ENDDO
 *ENDDO
-ALLSEL
+*MWRITE,nodl,NONL,TXT,,IJK,2*ii
+(F10.0)
+*MWRITE,xy,NONLXY,TXT,,IJK,6*ii
+(E25.15)
+*CFOPEN,NONN,TXT
+*VWRITE,2*ii
+(F10.0)
+*CFCLOS
+
+!! !******* NONLINEAR ELEMENT *******
+!! /PREP7
+!! id=3
+!! nonele
+!! CPINTF,UX$CPINTF,UY$CPINTF,UZ
+
+!! !******* TRANSIENT ANALYSIS *******
+!! FINISH
+!! /CONFIG,NRES,10000
+!! nstep=4000
+!! step=0.01
+!! *DIM,acce180,,nstep
+!! *DIM,acce270,,nstep
+!! *VREAD,acce180,I-ELC180.AT2,,,,nstep,,,4
+!! (5F15.0)
+!! *VREAD,acce270,I-ELC270.AT2,,,,nstep,,,4
+!! (5F15.0)
+!! ! solve
+!! /SOLU
+!! ANTYPE,4
+!! ALPHAD,0.6 ! mass damping
+!! BETAD,0.006 ! stiffness damping
+!! *DO,i,1,nstep
+!!   TIME,i*step
+!!   ACEL,acce270(i)*9.81,,acce180(i)*9.81
+!!   SOLVE
+!! *ENDDO

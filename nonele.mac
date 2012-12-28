@@ -1,0 +1,27 @@
+!! id=1
+ET,id,BEAM188
+MP,EX,id,2.1E11$MP,PRXY,id,0.3$MP,DENS,id,7800
+TB,BKIN,id$TBDATA,1,235E6,7.9E8!$TBPLOT
+SECTYPE,id,BEAM,RECT$SECDATA,0.07,0.07!$SECPLOT,id
+TYPE,id$MAT,id$SECNUM,id
+*DIM,tempv,,1
+*VREAD,tempv,NONN,TXT,,,1
+(F10.0)
+n=tempv(1)
+*DEL,xy,,NOPR
+*DIM,xy,,n,3
+*VREAD,xy,NONLXY,TXT,,JIK,3,n
+(F25.0)
+*GET,nodmax,NODE,0,NUM,MAXD
+*DO,i,1,n/2
+  i1=i*2-1
+  i2=i*2
+  n1=i1+nodmax
+  n2=i2+nodmax
+  N,n1,xy(i1,1),xy(i1,2),xy(i1,3)
+  N,n2,xy(i2,1),xy(i2,2),xy(i2,3)
+  E,n1,n2
+  D,n1,ROTX,0
+  D,n1,ROTY,0
+  D,n1,ROTZ,0
+*ENDDO
