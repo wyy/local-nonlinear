@@ -493,7 +493,7 @@ function resplot(node, dof, t, map_node, map_dof, rst, time_s)
     y = t_nd * rst;
     plot(time_s, y)
     % save
-    outmat = [time_s, y]';
+    outmat = [time_s; y]';
     save(sprintf('rst-%d-%d.txt', node, dof), 'outmat', '-ASCII')
 end
 
