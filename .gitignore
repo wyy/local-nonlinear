@@ -2,3 +2,4 @@
 *.mapping
 file.*
 vm1.out
+*.mat

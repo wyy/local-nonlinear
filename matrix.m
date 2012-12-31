@@ -10,56 +10,85 @@
 % _code:_
 
 %% matrix
-% Verify the *Path to ANSYS*.
-function matrix()
-    clc
-    % ANSYS Path
+% The process for a typical transient analysis.
+%
+% 1. Building the Model.  2. Applying Loads and Obtaining the
+% Solution.  3. Reviewing the Results.
+function matrix(varargin)
+    nvarargs = length(varargin);
+    if nvarargs == 3 && strcmp(varargin{1}, 'post')
+        node = varargin{2};
+        dof = varargin{3};
+        load('result.mat')
+        if ~ismember(node, map_node) || ~ismember(dof, map_dof)
+            fprintf('NODE or DOF error\n')
+            return
+        end
+        resplot(node, dof, tr, map_node, map_dof, rst, time_s)
+        return
+    elseif nvarargs <= 2
+        opt = {'linear', 'nonlinear', 'irs', 'lr'};
+        for i = 1:nvarargs
+            if ~ismember(varargin{i}, opt)
+                type('README.md')
+                return
+            end
+        end
+        s = ismember(opt, varargin);
+        opt_linear = s(1);
+        opt_irs = s(3);
+        if s(2) == 0
+            opt_linear = 1;
+        end
+        if s(4) == 0
+            opt_irs = 1;
+        end
+    else
+        type('README.md')
+        return
+    end
+
+    % ANSYS
     global ansys
     ansys = '"C:\Program Files\ANSYS Inc\v121\ansys\bin\WINX64\ansys121" -b';
 
-    % model
-    [status, result] = system('clean');
+    % Model
     system([ansys ' -i model.mac -o vm1.out']);
-    % read [k] [m] and [mapping]
+    fprintf('READ %s\n', 'K.TXT', 'M.TXT', 'K.mapping');
     [k, rhs] = readhb('K.TXT');
     [m, r0] = readhb('M.TXT');
-    [dofmp, dofmpxyn] = readmap('K.mapping', size(k,1));
-
-    % model reduction
-    fprintf('\nNatural frequencies\n');
+    [map_node, map_dof] = readmap('K.mapping', size(k,1));
+    % Model reduction
+    fprintf('\nNatural frequencies (Hz)\n');
     freq(k, m, 'EXACT');
-    [mr, kr, tr] = lrbm(k, m, dofmp, dofmpxyn);
-    [mr, kr, tr] = irs(k, m, dofmp);
+    if opt_irs == 1
+        [mr, kr, tr] = irs(k, m, map_node);
+    else
+        [mr, kr, tr] = lrbm(k, m, map_node, map_dof);
+    end
 
     tic
-    % transient analysis
-    fprintf('\nTransient analysis with HPD-L\n');
-    % OPTIONS: 'linear' || 'nonlinear'
-    [times, rst] = trans_hpd(mr, kr, tr, dofmp, dofmpxyn, 'linear');
+    % Apply loads.                      file1 file2
+    % Specify load options [alpha, beta, dof1, dof2, scale]
+    fprintf('\nApply loads and solve\n');
+    [cr, fs, time_s, step] = loads(mr, kr, tr, map_dof, 'I-ELC180.AT2', ...
+                                  'I-ELC270.AT2', [0.6, 0.006, 3, 1, 1]);
+    % Solve
+    if opt_linear == 1
+        rst = hpdl(mr, cr, kr, tr, fs, step, map_node, map_dof, 'linear');
+    else
+        rst = hpdl(mr, cr, kr, tr, fs, step, map_node, map_dof, 'nonlinear');
+    end
     toc
-    resplot(1646, 3, tr, dofmp, dofmpxyn, times, rst)
-    save('rstfile.mat', 'tr', 'dofmp', 'dofmpxyn', 'times', 'rst')
-    load('rstfile.mat')
-end
-
-%% freq
-% Natural frequencies.
-function frequencies = freq(k, m, flags)
-    n = 15;
-    d = eigs(k, m, n, 'sm');
-    d = sort(d, 1);
-    % units: HZ
-    frequencies = sqrt(d) / (2 * pi);
-    str = [sprintf('%7s:', flags), sprintf('%11.5f', frequencies), '\n'];
-    fprintf(str);
+    rst = rst(1:size(kr,1), :);
+    save('result.mat', 'tr', 'map_node', 'map_dof', 'rst', 'time_s')
 end
 
 %% readhb
-% Read matrix from file with Harwell-Boeing format.
+% Read matrix in Harwell-Boeing format.
 function [matrix, rhs] = readhb(file_name)
-    fprintf('READ %s\n', file_name);
     fid = fopen(file_name);
-    % read header from HB file
+    % HB file header
     tline = fgetl(fid);
     tline = fgetl(fid);
     b = sscanf(tline, '%d', 5);
@@ -68,9 +97,8 @@ function [matrix, rhs] = readhb(file_name)
     tline = fgetl(fid);
     if b(5) ~= 0
         tline = fgetl(fid);
-        % d = sscanf(tline, '%*s%d%d');
     end
-    % read matrix data
+    % matrix data
     ncolu = b(2); % number of line(column) info
     nrow = b(3); % number of row info
     nrhs = b(5); % number of RHS
@@ -98,40 +126,50 @@ function [matrix, rhs] = readhb(file_name)
 end
 
 %% readmap
-% Read filename.mapping file.
-function [dofmp, dofmpxyn] = readmap(file_name, n)
-    fprintf('READ %s\n', file_name);
-    dofmp = zeros(n,1);
-    dofmpxyn = zeros(n,1);
+% Read the mapping file.
+function [map_node, map_dof] = readmap(file_name, n)
+    map_node = zeros(n,1);
+    map_dof = zeros(n,1);
     fid = fopen(file_name);
     tline = fgetl(fid);
     for i = 1:n
-        dofmp(i,1) = fscanf(fid, '%*d%d');
-        dofmpxyn(i,1) = uxy2num(fscanf(fid, '%s', 1));
+        map_node(i,1) = fscanf(fid, '%*d%d');
+        map_dof(i,1) = u2dof(fscanf(fid, '%s', 1));
     end
     fclose(fid);
 end
 
-%% uxy2num
-% uxy to number.
-function num = uxy2num(uxy)
-    switch uxy
+%% u2dof
+% U to DOF.
+function dof = u2dof(u)
+    switch u
       case 'UX'
-        num = 1;
+        dof = 1;
       case 'UY'
-        num = 2;
+        dof = 2;
       case 'UZ'
-        num = 3;
+        dof = 3;
       case 'ROTX'
-        num = 4;
+        dof = 4;
       case 'ROTY'
-        num = 5;
+        dof = 5;
       case 'ROTZ'
-        num = 6;
+        dof = 6;
       otherwise
-        num = 0;
-        fprintf('\n*** UXY2NUM error ***\n\n');
+        dof = 0;
+        fprintf('\n*** u2dof ERROR ***\n\n');
     end
+end
+
+%% freq
+% Natural frequencies.
+function frequencies = freq(k, m, flags)
+    n = 15;
+    d = eigs(k, m, n, 'sm');
+    d = sort(d, 1);
+    % units: Hz
+    frequencies = sqrt(d) / (2 * pi);
+    fprintf([sprintf('%7s:', flags), sprintf('%11.5f', frequencies), '\n']);
 end
 
 %% irs
@@ -174,8 +212,8 @@ end
 % $$\mathbf{t}_{IRS,i+1} = -\mathbf{K}_{ss}^{-1}\mathbf{K}_{sm} +
 % \mathbf{K}_{ss}^{-1}(\mathbf{M}_{sm}+\mathbf{M}_{ss}\mathbf{t}_{IRS,i})
 % \mathbf{M}_{IRS,i}^{-1}\mathbf{K}_{IRS,i}.$$
-function [mr, kr, t] = irs(k, m, dofmp)
-    [meqid, seqid, nmdof] = mseqid(dofmp);
+function [mr, kr, t] = irs(k, m, map_node)
+    [meqid, seqid, nmdof] = mseqid(map_node);
     kss = k(seqid, seqid);
     ksm = k(seqid, meqid);
     mss = m(seqid, seqid);
@@ -208,10 +246,10 @@ function [mr, kr, t] = irs(k, m, dofmp)
 end
 
 %% mseqid
-% Get meqid, seqid, nmdof, restor.
-function [meqid, seqid, nmdof] = mseqid(dofmp)
-    mnd_list = load('MNODES.TXT');
-    meqid = ismember(dofmp, mnd_list);
+% Get meqid, seqid, nmdof.
+function [meqid, seqid, nmdof] = mseqid(map_node)
+    nd_list = load('MNODES.TXT');
+    meqid = ismember(map_node, nd_list);
     seqid = not(meqid);
     nmdof = size(find(meqid), 1);
 end
@@ -222,21 +260,21 @@ end
 % The transformation matrix is
 %
 % $$\mathbf{T}=\mathbf{K}^{-1}(\mathbf{R}^T)^+\mathbf{R}^T\mathbf{KR}.$$
-function [mr, kr, t] = lrbm(k, m, dofmp, dofmpxyn)
-    r = getr(dofmp, dofmpxyn, size(k,1));
+function [mr, kr, t] = lrbm(k, m, map_node, map_dof)
+    r = getr(map_node, map_dof, size(k,1));
     % t
     prkr = pinv(r') * (r' * k * r);
     t = k \ prkr;
     % reduced K, M
     mr = t' * m * t;
     kr = t' * k * t;
-    % eigs
+    % frequencies
     freq(kr, mr, 'LR');
 end
 
 %% getr
 % Computer r.
-function r = getr(dofmp, dofmpxyn, n)
+function r = getr(map_node, map_dof, n)
     nreg = load('RIGID.TXT');
     r = zeros(n, 6*nreg);
     temp = eye(6);
@@ -256,8 +294,8 @@ function r = getr(dofmp, dofmpxyn, n)
             temp(3,4) = yd;
             temp(3,5) = - xd;
             % fill r
-            indexr = dofmp == nd_list(j);
-            indext = dofmpxyn(indexr, 1);
+            indexr = map_node == nd_list(j);
+            indext = map_dof(indexr, 1);
             r(indexr, (6*(i-1)+1):(6*i)) = temp(indext, :);
         end
     end
@@ -284,7 +322,7 @@ end
 % $$m,k,c \in \mathbf{R}^{n \times n}, \quad f \in \mathbf{R}^{n \times
 %   (nstep+1)}, \quad v \in \mathbf{R}^{2n \times 1}, \quad rst \in
 % \mathbf{R}^{2n \times nstep}.$$
-function rst = hpdl(m, c, k, f, step, trans, dofmp, dofmpxyn, varargin)
+function rst = hpdl(m, c, k, trans, f, step, map_node, map_dof, flags)
     n = size(k, 1);
     % H
     im = inv(m);
@@ -303,12 +341,10 @@ function rst = hpdl(m, c, k, f, step, trans, dofmp, dofmpxyn, varargin)
     % f
     f = im * f;
     % hpdl iteration
-    if isempty(varargin)
-        % linear
+    if strcmp(flags, 'linear')
         rst = hpdl_iteration(ih, t, f, step);
-    else
-        % nonlinear
-        rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn);
+    elseif strcmp(flags, 'nonlinear')
+        rst = hpdl_non_iteration(ih, t, f, step, im, trans, map_node);
     end
 end
 
@@ -333,7 +369,7 @@ end
 
 %% hpdl_non_iteration
 % hpdl iteration with nonlinear force
-function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
+function rst = hpdl_non_iteration(ih, t, f, step, im, trans, map_node)
     n = size(f, 1);
     nstep = size(f, 2);
     r = zeros(2*n, 1);
@@ -364,10 +400,10 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
             if j > 0
                 error = max(abs((v_temp - v_old) ./ v_old));
                 if j == 20
-                    fprintf('Nonconvergence: step %d\n', i);
+                    str = [non_print_b, sprintf('Nonconvergence: step %d\n', i)];
                     break
                 elseif error < 0.001
-                    fprintf(non_print_b);
+                    str = non_print_b;
                     break
                 end
             end
@@ -375,7 +411,7 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
             % output degree-of-freedom constraints at nodes
             v_trans = trans * v_temp(1:n, 1);
             for ii = 1:size(non_nodes,1)
-                index = find(dofmp == non_nodes(ii));
+                index = find(map_node == non_nodes(ii));
                 non_d(ii*3-2:ii*3, 1) = v_trans(index(1:3), 1);
             end
             fid = fopen('D.TXT', 'w');
@@ -393,62 +429,53 @@ function rst = hpdl_non_iteration(im, ih, t, f, step, trans, dofmp, dofmpxyn)
             % load nodal reaction forces
             non_f = load('F.TXT');
             for ii = 1:size(non_nodes,1)
-                index = find(dofmp == non_nodes(ii));
+                index = find(map_node == non_nodes(ii));
                 non_f_full(index(1:3), 1) = non_f(ii*3-2:ii*3, 1);
             end
         end
         non_iter = non_iter + j;
-        fprintf(non_print, i, nstep, j, non_iter);
-        % save result
+        fprintf([str, non_print], i, nstep, j, non_iter);
+        % result
         v = v_temp;
         f(:, i+1) = f(:, i+1) - im * non_f_trans;
         rst(:, i) = v;
     end
 end
 
-%% trans_hpd
-% Transient analysis with HPD-L.
-function [times, rst] = trans_hpd(m, k, t, dofmp, dofmpxyn, str)
-    n = size(k, 1);
+%% loads
+% Apply acceleration loads in a transient analysis.
+function [c, fs, time_s, step] = loads(m, k, t, map_dof, file1, file2, opt)
+    alpha = opt(1);
+    beta = opt(2);
+    dof1 = opt(3);
+    dof2 = opt(4);
+    scale = opt(5);
     % damping
-    alpha = 0.6;
-    beta = 0.006;
     c = alpha * m + beta * k;
     % load earthquake
-    [step, acce_180] = rd_earthquake('I-ELC180.AT2');
-    [step, acce_270] = rd_earthquake('I-ELC270.AT2');
-    % direction 180: ACEL_Z, 270: ACEL_X
-    index_180 = dofmpxyn == 3;
-    index_270 = dofmpxyn == 1;
+    [step, acce_1] = load_earthquake(file1);
+    [step, acce_2] = load_earthquake(file2);
+    % direction
+    index_1 = map_dof == dof1;
+    index_2 = map_dof == dof2;
     % transformed force sequence
-    fs_1 = - m * pinv(t) * index_180 * acce_180' * 9.81;
-    fs_2 = - m * pinv(t) * index_270 * acce_270' * 9.81;
+    fs_1 = - m * pinv(t) * index_1 * acce_1' * 9.81;
+    fs_2 = - m * pinv(t) * index_2 * acce_2' * 9.81;
     fs = fs_1 + fs_2;
-    % modify step
-    scale = 1;
+    % scaling
     step = step * scale;
     fs = fs(:, scale:scale:end);
-
-    % transient analysis
-    if strcmp(str,  'linear')
-        % linear
-        rst = hpdl(m, c, k, fs, step, t, dofmp, dofmpxyn);
-    elseif strcmp(str, 'nonlinear')
-        % nonlinear
-        rst = hpdl(m, c, k, fs, step, t, dofmp, dofmpxyn, 'nonlinear');
-    end
-    rst = rst(1:n, :);
-    % times
+    % time_s
     time = step * size(fs, 2);
-    times = step:step:time;
+    time_s = step:step:time;
 end
 
-%% rd_earthquake
-% Read acceleration time history and time step.
+%% load_earthquake
+% Load ground motion data.
 %
 % The Pacific Earthquake Engineering Research Center (PEER)
 % ground motion database: http://peer.berkeley.edu/smcat/
-function [step, acce] = rd_earthquake(file_name)
+function [step, acce] = load_earthquake(file_name)
     fid = fopen(file_name);
     for i = 1:4
         tline = fgetl(fid);
@@ -459,18 +486,15 @@ function [step, acce] = rd_earthquake(file_name)
 end
 
 %% resplot
-% Plot and save the result of a node (node_num: ndof).
-function resplot(node_num, ndof, t, dofmp, dofmpxyn, times, rst)
-    index = dofmp == node_num & dofmpxyn == ndof;
-    t_res = t(index, :);
-    y = t_res * rst;
-    plot(times, y)
+% Plot and save Nodal DOF result.
+function resplot(node, dof, t, map_node, map_dof, rst, time_s)
+    index = map_node == node & map_dof == dof;
+    t_nd = t(index, :);
+    y = t_nd * rst;
+    plot(time_s, y)
     % save
-    times = times';
-    y = y';
-    str = sprintf('%d-%d', node_num, ndof);
-    save(['log-' str '-t.txt'], 'times', '-ASCII')
-    save(['log-' str '-u.txt'], 'y', '-ASCII')
+    outmat = [time_s, y]';
+    save(sprintf('rst-%d-%d.txt', node, dof), 'outmat', '-ASCII')
 end
 
 % matrix.m ends here
