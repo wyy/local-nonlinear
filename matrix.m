@@ -384,7 +384,7 @@ function rst = hpdl_non_iteration(ih, t, f, step, im, trans, map_node)
     non_d = zeros(size(non_nodes,1)*3, 1);
     non_f_full = zeros(size(trans, 1), 1);
     non_iter = 0;
-    non_print_b = char(reshape([92;98]*ones(1,57), 1, []));
+    non_pbs = char(reshape([92;98]*ones(1,57), 1, []));
     non_print = '[%6d/%6d] %2d, Cumulative Iteration Number: %7d\n';
     % initial nonlinear analysis
     fprintf(non_print, 0, 0, 0, 0);
@@ -400,10 +400,10 @@ function rst = hpdl_non_iteration(ih, t, f, step, im, trans, map_node)
             if j > 0
                 error = max(abs((v_temp - v_old) ./ v_old));
                 if j == 20
-                    str = [non_print_b, sprintf('Nonconvergence: step %d\n', i)];
+                    str = [non_pbs, sprintf('Nonconvergence: step %d\n', i)];
                     break
                 elseif error < 0.001
-                    str = non_print_b;
+                    str = non_pbs;
                     break
                 end
             end
@@ -486,7 +486,7 @@ function [step, acce] = load_earthquake(file_name)
 end
 
 %% resplot
-% Plot and save Nodal DOF result.
+% Plot and save nodal DOF result.
 function resplot(node, dof, t, map_node, map_dof, rst, time_s)
     index = map_node == node & map_dof == dof;
     t_nd = t(index, :);

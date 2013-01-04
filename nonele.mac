@@ -21,7 +21,4 @@ n=tempv(1)
   N,n1,xy(i1,1),xy(i1,2),xy(i1,3)
   N,n2,xy(i2,1),xy(i2,2),xy(i2,3)
   E,n1,n2
-!  D,n1,ROTX,0
-!  D,n1,ROTY,0
-!  D,n1,ROTZ,0
 *ENDDO
