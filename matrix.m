@@ -1,8 +1,6 @@
 %% matrix.m --- local nonlinear transient analysis
 % |2011-12-07, wyyjtu@gmail.com|
-%
-% |2012-06-28: add latex.|
-% |2012-12-25: local nonlinear.|
+% |2012-12-25, add nonlinear iteration.|
 %
 % MATLAB R2012a
 % ANSYS 12.1
@@ -382,17 +380,18 @@ function rst = hpdl_non_iteration(ih, t, f, step, im, trans, map_node)
     global ansys
     non_nodes = load('NONL.TXT');
     non_d = zeros(size(non_nodes,1)*3, 1);
-    non_f_full = zeros(size(trans, 1), 1);
     non_iter = 0;
-    non_pbs = char(reshape([92;98]*ones(1,57), 1, []));
+    ff = zeros(size(trans, 1), 1);
     non_print = '[%6d/%6d] %2d, Cumulative Iteration Number: %7d\n';
+    non_p_len = length(sprintf(non_print, 0, 0, 0, 0));
+    non_pbs = char(reshape([92;98]*ones(1,non_p_len), 1, []));
     % initial nonlinear analysis
     fprintf(non_print, 0, 0, 0, 0);
     system([ansys ' -i nonlinear.mac -o vm1.out']);
     for i = 1:nstep
         [status, result] = system('move file.r002 file.r001');
         for j = 0:99
-            non_f_trans = trans' * non_f_full;
+            non_f_trans = trans' * ff;
             r(n+1:end, 1) = f(:, i);
             r1(n+1:end, 1) = (f(:, i+1) - im * non_f_trans - f(:, i)) / step;
             v_temp = t*(v + ih*(r + ih*r1)) - ih*(r + ih*r1 + r1*step);
@@ -428,9 +427,10 @@ function rst = hpdl_non_iteration(ih, t, f, step, im, trans, map_node)
             system([ansys ' -i RESTART.TXT -o vm1.out']);
             % load nodal reaction forces
             non_f = load('F.TXT');
+            ff = zeros(size(trans, 1), 1);
             for ii = 1:size(non_nodes,1)
                 index = find(map_node == non_nodes(ii));
-                non_f_full(index(1:3), 1) = non_f(ii*3-2:ii*3, 1);
+                ff(index(1:3), 1) = ff(index(1:3), 1) + non_f(ii*3-2:ii*3, 1);
             end
         end
         non_iter = non_iter + j;
