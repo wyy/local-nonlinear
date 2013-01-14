@@ -6,14 +6,12 @@
 ## Description
 
 - OPTIONS
-  - `'linear'`
-    Linear transient analysis (default).
-  - `'nonlinear'`
-    Local nonlinear transient analysis.
-  - `'irs'`
-    Model reduction using IRS method (default).
-  - `'lr'`
-    Model reduction based on local rigid body mode.
+  - `'linear'` or `'nonlinear'`
+    Linear transient analysis (default), or local nonlinear transient
+    analysis.
+  - `'irs'` or `'lr'`
+    Model reduction using IRS method (default), or model reduction
+    based on local rigid body mode.
 - NODE
   - Node for which data are to be stored.
 - DOF
