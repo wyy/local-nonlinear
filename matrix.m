@@ -33,7 +33,7 @@ function matrix(varargin)
                 opt_linear = 0;
             elseif strcmp(varargin{i}, opt{4})
                 opt_irs = 0;
-            else ~ismember(varargin{i}, opt)
+            elseif ~ismember(varargin{i}, opt)
                 type('README.md')
                 return
             end
