@@ -25,21 +25,18 @@ function matrix(varargin)
         resplot(node, dof, tr, map_node, map_dof, rst, time_s)
         return
     elseif nvarargs <= 2
+        opt_linear = 1;
+        opt_irs = 1;
         opt = {'linear', 'nonlinear', 'irs', 'lr'};
         for i = 1:nvarargs
-            if ~ismember(varargin{i}, opt)
+            if strcmp(varargin{i}, opt{2})
+                opt_linear = 0;
+            elseif strcmp(varargin{i}, opt{4})
+                opt_irs = 0;
+            else ~ismember(varargin{i}, opt)
                 type('README.md')
                 return
             end
-        end
-        s = ismember(opt, varargin);
-        opt_linear = s(1);
-        opt_irs = s(3);
-        if s(2) == 0
-            opt_linear = 1;
-        end
-        if s(4) == 0
-            opt_irs = 1;
         end
     else
         type('README.md')

@@ -1,16 +1,15 @@
 # Usage
 
-    matrix([TYPE], [METHOD])
+    matrix([OPTIONS])
     matrix('post', NODE, DOF)
 
 ## Description
 
-- TYPE
+- OPTIONS
   - `'linear'`
     Linear transient analysis (default).
   - `'nonlinear'`
     Local nonlinear transient analysis.
-- METHOD
   - `'irs'`
     Model reduction using IRS method (default).
   - `'lr'`
