@@ -67,7 +67,7 @@ mnod(7)=NODE(3*lx,5*ly,2*lz)
 *DIM,xy,,3000
 ii=0
 *DO,i,2,2
-  *DO,j,0,5
+  *DO,j,1,5
     *DO,k,0,2,2
       ii=ii+1
       xy(6*ii-5)=i*lx$xy(6*ii-4)=j*ly$xy(6*ii-3)=k*lz
