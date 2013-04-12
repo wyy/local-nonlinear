@@ -6,7 +6,8 @@ kbx=10000$kby=kbx+1$K,kbx,kbx$K,kby,0,kby
 ! element type, material property, section type
 ET,1,BEAM188
 MP,EX,1,2.1E11$MP,PRXY,1,0.3$MP,DENS,1,7800
-SECTYPE,1,BEAM,RECT$SECDATA,0.3,0.3
+SECTYPE,1,BEAM,HREC$SECDATA,0.3,0.3,0.07,0.07,0.07,0.07
+SECCONTROLS,0,,0,1100
 SECTYPE,2,BEAM,I$SECDATA,0.18,0.18,0.3,0.02,0.02,0.012
 ! model
 K,1$K,2,lx$K,3,0,ly$K,4,lx,ly$K,5,0,0,lz$K,6,lx,0,lz$K,7,0,ly,lz$K,8,lx,ly,lz
@@ -14,7 +15,7 @@ L,1,3$L,3,4$L,4,2$L,5,7$L,7,8$L,8,6$L,3,7$L,4,8
 LGEN,nx,ALL,,,lx$LGEN,ny,ALL,,,,ly$LGEN,nz,ALL,,,,,lz$NUMMRG,ALL
 ! mesh
 *DO,i,1,ny$LSEL,U,LOC,Y,ly*i$*ENDDO
-LATT,1,,1,,kbx,,1$LESIZE,ALL,,,3$LSEL,INVE$LATT,1,,1,,kby,,2$LESIZE,ALL,,,10
+LATT,1,,1,,kbx,,1$LESIZE,ALL,,,1$LSEL,INVE$LATT,1,,1,,kby,,2$LESIZE,ALL,,,1
 ALLSEL$LMESH,ALL
 ! constraints
 NSEL,S,LOC,Y,0$D,ALL,ALL$ALLSEL$EPLOT
