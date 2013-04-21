@@ -6,8 +6,8 @@ kbx=10000$kby=kbx+1$K,kbx,kbx$K,kby,0,kby
 ! element type, material property, section type
 ET,1,BEAM188
 MP,EX,1,2.1E11$MP,PRXY,1,0.3$MP,DENS,1,7800
-SECTYPE,1,BEAM,HREC$SECDATA,0.3,0.3,0.07,0.07,0.07,0.07
-SECCONTROLS,0,,0,1100
+SECTYPE,1,BEAM,HREC$SECDATA,0.3,0.3,0.05,0.05,0.05,0.05
+SECCONTROLS,0,,0,1280
 SECTYPE,2,BEAM,I$SECDATA,0.18,0.18,0.3,0.02,0.02,0.012
 ! model
 K,1$K,2,lx$K,3,0,ly$K,4,lx,ly$K,5,0,0,lz$K,6,lx,0,lz$K,7,0,ly,lz$K,8,lx,ly,lz
