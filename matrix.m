@@ -1,6 +1,7 @@
 %% matrix.m --- local nonlinear transient analysis
 % |2011-12-07, wyyjtu@gmail.com|
 % |2012-12-25, add nonlinear iteration.|
+% |2013-04-29, end.|
 %
 % MATLAB R2012a
 % ANSYS 12.1

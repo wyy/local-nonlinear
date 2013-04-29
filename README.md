@@ -6,25 +6,25 @@
 ## Description
 
 - OPTIONS
-  - `'linear'` or `'nonlinear'`
-    Linear transient analysis (default), or local nonlinear transient
-    analysis.
   - `'irs'` or `'lr'`
     Model reduction using IRS method (default), or model reduction
     based on local rigid body mode.
+  - `'linear'` or `'nonlinear'`
+    Linear transient analysis (default), or local nonlinear transient
+    analysis.
 - NODE
-  - Node for which data are to be stored.
+  - Node number.
 - DOF
   - (1, 2, 3, 4, 5, 6) for (UX, UY, UZ, ROTX, ROTY, ROTZ).
 
 ## Examples
 
-`matrix()` 'linear' 'irs'
+`matrix()` 'irs' 'linear'
 
-`matrix('nonlinear')` 'nonlinear' 'irs'
+`matrix('nonlinear')` 'irs' 'nonlinear'
 
-`matrix('lr')` 'linear' 'lr'
+`matrix('lr')` 'lr' 'linear'
 
-`matrix('nonlinear', 'lr')` 'nonlinear' 'lr'
+`matrix('lr', 'nonlinear')` 'lr' 'nonlinear'
 
-`matrix('post', 1646, 3)` specifies nodal data from the results file
+`matrix('post', 191, 3)` specifies nodal data from the results file
